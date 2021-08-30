@@ -39,9 +39,11 @@ type Collector struct {
 		sstDesc     *prometheus.Desc
 		stDesc      *prometheus.Desc
 		hbktDesc    *prometheus.Desc
+		assocId     *prometheus.Desc
 		txQueueDesc *prometheus.Desc
 		rxQueueDesc *prometheus.Desc
-		infoDesc    *prometheus.Desc
+		uidDesc     *prometheus.Desc
+		inodeDesc   *prometheus.Desc
 		hbintDesc   *prometheus.Desc
 		insDesc     *prometheus.Desc
 		outsDesc    *prometheus.Desc
@@ -234,7 +236,7 @@ func (collector *Collector) init(maxRequests int) error {
 	{
 		const namespace = "sctp"
 		const subsystem = "assoc"
-		commonLabels := []string{"association_id"}
+		commonLabels := []string{"local_port", "remote_port", "local_addresses", "remote_addresses"}
 
 		collector.assoc.assocDesc = prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, subsystem, "association_pointer"),
@@ -272,6 +274,12 @@ func (collector *Collector) init(maxRequests int) error {
 			commonLabels,
 			nil)
 
+		collector.assoc.assocId = prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, subsystem, "association_id"),
+			"Association ID",
+			commonLabels,
+			nil)
+
 		collector.assoc.txQueueDesc = prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, subsystem, "transmit_queue_bytes"),
 			"Bytes in transmit queue",
@@ -284,10 +292,16 @@ func (collector *Collector) init(maxRequests int) error {
 			commonLabels,
 			nil)
 
-		collector.assoc.infoDesc = prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, subsystem, "info"),
-			"Info",
-			append(commonLabels, []string{"uid", "inode", "local_port", "remote_port", "local_addresses", "remote_addresses"}...),
+		collector.assoc.uidDesc = prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, subsystem, "uid"),
+			"UID",
+			commonLabels,
+			nil)
+
+		collector.assoc.inodeDesc = prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, subsystem, "inode"),
+			"inode",
+			commonLabels,
 			nil)
 
 		collector.assoc.hbintDesc = prometheus.NewDesc(
@@ -686,9 +700,11 @@ func (collector *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.assoc.sstDesc
 	ch <- collector.assoc.stDesc
 	ch <- collector.assoc.hbktDesc
+	ch <- collector.assoc.assocId
 	ch <- collector.assoc.txQueueDesc
 	ch <- collector.assoc.rxQueueDesc
-	ch <- collector.assoc.infoDesc
+	ch <- collector.assoc.uidDesc
+	ch <- collector.assoc.inodeDesc
 	ch <- collector.assoc.hbintDesc
 	ch <- collector.assoc.insDesc
 	ch <- collector.assoc.outsDesc
@@ -791,133 +807,146 @@ func (collector *Collector) Collect(ch chan<- prometheus.Metric) {
 	// assocs
 	for _, assoc := range assocs {
 
-		assocId := strconv.FormatInt(assoc.assocId, 10)
+		lPort := strconv.FormatInt(assoc.lPort, 10)
+		rPort := strconv.FormatInt(assoc.rPort, 10)
+		lAddrs := assoc.lAddrs
+		rAddrs := assoc.rAddrs
+
+		//assocId := strconv.FormatInt(assoc.assocId, 10)
+
+		// commonLabels := []string{"local_port", "remote_port", "local_addresses", "remote_addresses"}
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.assocDesc,
 			prometheus.GaugeValue,
 			float64(assoc.assoc),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.sockDesc,
 			prometheus.GaugeValue,
 			float64(assoc.sock),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.styDesc,
 			prometheus.GaugeValue,
 			float64(assoc.sty),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.sstDesc,
 			prometheus.GaugeValue,
 			float64(assoc.sst),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.stDesc,
 			prometheus.GaugeValue,
 			float64(assoc.st),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.hbktDesc,
 			prometheus.GaugeValue,
 			float64(assoc.hbkt),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
+
+		ch <- prometheus.MustNewConstMetric(
+			collector.assoc.assocId,
+			prometheus.GaugeValue,
+			float64(assoc.assocId),
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.txQueueDesc,
 			prometheus.GaugeValue,
 			float64(assoc.txQueue),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.rxQueueDesc,
 			prometheus.GaugeValue,
 			float64(assoc.rxQueue),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
-			collector.assoc.infoDesc,
+			collector.assoc.uidDesc,
 			prometheus.GaugeValue,
-			0.0,
-			assocId,
-			strconv.FormatInt(assoc.uid, 10),
-			strconv.FormatInt(assoc.inode, 10),
-			strconv.FormatInt(assoc.lPort, 10),
-			strconv.FormatInt(assoc.rPort, 10),
-			assoc.lAddrs,
-			assoc.rAddrs)
+			float64(assoc.uid),
+			lPort, rPort, lAddrs, rAddrs)
+
+		ch <- prometheus.MustNewConstMetric(
+			collector.assoc.inodeDesc,
+			prometheus.GaugeValue,
+			float64(assoc.inode),
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.hbintDesc,
 			prometheus.GaugeValue,
 			float64(assoc.hbint)/1000.00,
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.insDesc,
 			prometheus.GaugeValue,
 			float64(assoc.ins),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.outsDesc,
 			prometheus.GaugeValue,
 			float64(assoc.outs),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.maxRTDesc,
 			prometheus.GaugeValue,
 			float64(assoc.maxRT),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.t1XDesc,
 			prometheus.CounterValue,
 			float64(assoc.t1x),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.t2XDesc,
 			prometheus.CounterValue,
 			float64(assoc.t2x),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.rtxcDesc,
 			prometheus.CounterValue,
 			float64(assoc.rtxc),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.wMemADesc,
 			prometheus.GaugeValue,
 			float64(assoc.wmema),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.wMemQDesc,
 			prometheus.GaugeValue,
 			float64(assoc.wmemq),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.sndBufDesc,
 			prometheus.GaugeValue,
 			float64(assoc.sndBuf),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.rcvBufDesc,
 			prometheus.GaugeValue,
 			float64(assoc.rcvBuf),
-			assocId)
+			lPort, rPort, lAddrs, rAddrs)
 
 	} // for each assoc
 
