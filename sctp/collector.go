@@ -812,10 +812,6 @@ func (collector *Collector) Collect(ch chan<- prometheus.Metric) {
 		lAddrs := assoc.lAddrs
 		rAddrs := assoc.rAddrs
 
-		//assocId := strconv.FormatInt(assoc.assocId, 10)
-
-		// commonLabels := []string{"local_port", "remote_port", "local_addresses", "remote_addresses"}
-
 		ch <- prometheus.MustNewConstMetric(
 			collector.assoc.assocDesc,
 			prometheus.GaugeValue,
