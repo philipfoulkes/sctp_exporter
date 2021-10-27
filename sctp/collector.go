@@ -109,8 +109,8 @@ type Collector struct {
 } // Collector
 
 type assoc struct {
-	assoc   int64
-	sock    int64
+	assoc   uint64
+	sock    uint64
 	sty     int64
 	sst     int64
 	st      int64
@@ -1270,9 +1270,9 @@ func (collector *Collector) fetchAssocs() ([]assoc, error) {
 			switch name {
 
 			case "ASSOC":
-				a.assoc, err = strconv.ParseInt(field, 10, 64)
+				a.assoc, err = strconv.ParseUint(field, 16, 64)
 			case "SOCK":
-				a.sock, err = strconv.ParseInt(field, 10, 64)
+				a.sock, err = strconv.ParseUint(field, 16, 64)
 			case "STY":
 				a.sty, err = strconv.ParseInt(field, 10, 64)
 			case "SST":
